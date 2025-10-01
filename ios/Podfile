@@ -1,7 +1,4 @@
-# Uncomment this line to define a global platform for your project
 platform :ios, '15.0'
-
-# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
@@ -28,41 +25,36 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
+  use_frameworks! :linkage => :static
   use_modular_headers!
-  
-  # Add this line to fix gRPC issues
-  pod 'gRPC-Core', :modular_headers => false
+
+  # Explicitly install Firebase pods that might be missing
+  pod 'FirebaseFirestore', '~> 10.0'
   
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-  
+
   target 'RunnerTests' do
     inherit! :search_paths
   end
 end
 
 post_install do |installer|
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+    config.build_settings["EXCLUDED_ARCHS[sdk=iphonesimulator*]"] = "arm64"
+  end
+  
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     
     target.build_configurations.each do |config|
-      # Fix for gRPC-Core modulemap issue
-      if target.name == 'gRPC-Core'
-        config.build_settings['DEFINES_MODULE'] = 'NO'
-        config.build_settings['USE_HEADERMAP'] = 'NO'
-        config.build_settings['ALWAYS_SEARCH_USER_PATHS'] = 'NO'
-      end
-      
-      # Fix for other gRPC-related pods
-      if target.name.include?('gRPC') || target.name.include?('GRPC')
-        config.build_settings['DEFINES_MODULE'] = 'NO'
-      end
-      
-      # Code signing disabled for CI
       config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
       config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
-      config.build_settings['CODE_SIGN_IDENTITY'] = ''
-      config.build_settings['DEVELOPMENT_TEAM'] = ''
-      config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ''
+      
+      # Workaround for Firebase and gRPC
+      if target.name == 'gRPC-Core' || target.name.include?('Firebase')
+        config.build_settings['DEFINES_MODULE'] = 'NO'
+      end
     end
   end
 end
